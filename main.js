@@ -1,5 +1,3 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-
 const GAME = {
     PLAYER_HEIGHT: 1.7, PLAYER_RADIUS: 0.4, WALK_SPEED: 5, SPRINT_SPEED: 9,
     PLAYER_MAX_HEALTH: 100, PLAYER_HEALTH_REGEN_DELAY: 5000, PLAYER_HEALTH_REGEN_RATE: 10,
