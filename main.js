@@ -17,7 +17,7 @@ const COLORS = {
     FOG_COLOR: 0x1a1008
 };
 
-const state = { isPointerLocked: false, isDead: false, enemies: [], grenades: [], explosions: [] };
+const state = { isPointerLocked: false, isDead: false, enemies: [], grenades: [], explosions: [], zombieTemplate: null };
 
 // Three.js setup
 const scene = new THREE.Scene();
@@ -292,6 +292,26 @@ function createProps() {
     }
 }
 
+function loadZombieModel() {
+    if (state.zombieTemplate) return Promise.resolve(state.zombieTemplate);
+    return new Promise((resolve, reject) => {
+        if (!THREE.GLTFLoader) {
+            reject(new Error('GLTFLoader not available'));
+            return;
+        }
+        const loader = new THREE.GLTFLoader();
+        loader.load(
+            'assets/zombie.glb',
+            (gltf) => {
+                state.zombieTemplate = gltf.scene;
+                resolve(state.zombieTemplate);
+            },
+            undefined,
+            (error) => reject(error)
+        );
+    });
+}
+
 // Weapon Model
 class WeaponModel {
     constructor() {
@@ -526,9 +546,11 @@ class Weapon {
         raycaster.set(camera.position, new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion));
         raycaster.far = GAME.WEAPON_RANGE;
 
-        const hits = raycaster.intersectObjects(state.enemies.map(e => e.mesh));
+        const hits = raycaster.intersectObjects(state.enemies.map(e => e.mesh), true);
         if (hits.length > 0) {
-            const enemy = state.enemies.find(e => e.mesh === hits[0].object);
+            let hitObject = hits[0].object;
+            while (hitObject && !hitObject.userData.enemy) hitObject = hitObject.parent;
+            const enemy = hitObject ? hitObject.userData.enemy : null;
             if (enemy) {
                 enemy.takeDamage(GAME.DAMAGE);
                 const hit = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff3300 }));
@@ -681,41 +703,60 @@ class Enemy {
         this.health = GAME.ENEMY_HEALTH;
         this.attackCooldown = 0;
         this.isDead = false;
-
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a5a4a, roughness: 0.9 });
-        this.mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1, 4, 8), bodyMat);
+        this.mesh = state.zombieTemplate ? this.buildModelZombie() : this.buildPrimitiveZombie();
         this.mesh.position.copy(pos);
-        this.mesh.position.y = 1;
-        this.mesh.castShadow = true;
+        this.mesh.userData.enemy = this;
         scene.add(this.mesh);
+    }
 
-        this.head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.85 }));
-        this.head.position.y = 0.95;
-        this.mesh.add(this.head);
+    buildModelZombie() {
+        const model = state.zombieTemplate.clone(true);
+        model.scale.setScalar(1.2);
+        model.position.y = 0;
+        model.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        return model;
+    }
+
+    buildPrimitiveZombie() {
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a5a4a, roughness: 0.9 });
+        const root = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1, 4, 8), bodyMat);
+        root.position.y = 1;
+        root.castShadow = true;
+
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.85 }));
+        head.position.y = 0.95;
+        root.add(head);
 
         const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
         [-0.08, 0.08].forEach(x => {
             const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeMat);
             eye.position.set(x, 0.03, -0.2);
-            this.head.add(eye);
+            head.add(eye);
         });
 
         const armMat = new THREE.MeshStandardMaterial({ color: 0x5a6a5a, roughness: 0.85 });
         this.leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.45, 4, 6), armMat);
         this.leftArm.position.set(-0.38, 0.25, -0.15);
         this.leftArm.rotation.x = -1.1;
-        this.mesh.add(this.leftArm);
+        root.add(this.leftArm);
 
         this.rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.45, 4, 6), armMat);
         this.rightArm.position.set(0.38, 0.25, -0.15);
         this.rightArm.rotation.x = -1.1;
-        this.mesh.add(this.rightArm);
+        root.add(this.rightArm);
+
+        return root;
     }
 
     takeDamage(amount) {
         this.health -= amount;
-        this.mesh.material.emissive.setHex(0xff0000);
-        setTimeout(() => { if (!this.isDead) this.mesh.material.emissive.setHex(0); }, 100);
+        this.applyEmissive(0xff0000);
+        setTimeout(() => { if (!this.isDead) this.applyEmissive(0x000000); }, 100);
         if (this.health <= 0) this.die();
     }
 
@@ -744,8 +785,21 @@ class Enemy {
 
         const t = Date.now() * 0.008;
         this.mesh.rotation.z = Math.sin(t) * 0.07;
-        this.leftArm.rotation.x = -1.1 + Math.sin(t) * 0.2;
-        this.rightArm.rotation.x = -1.1 + Math.sin(t + Math.PI) * 0.2;
+        if (this.leftArm && this.rightArm) {
+            this.leftArm.rotation.x = -1.1 + Math.sin(t) * 0.2;
+            this.rightArm.rotation.x = -1.1 + Math.sin(t + Math.PI) * 0.2;
+        }
+    }
+
+    applyEmissive(color) {
+        this.mesh.traverse((child) => {
+            if (child.isMesh && child.material) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                materials.forEach((mat) => {
+                    if (mat.emissive) mat.emissive.setHex(color);
+                });
+            }
+        });
     }
 }
 
@@ -821,8 +875,11 @@ const grenadeManager = new GrenadeManager();
 
 setupLighting();
 createWorld();
-initEnemies();
 setupInput();
 gameLoop();
+
+loadZombieModel()
+    .catch(() => null)
+    .finally(() => initEnemies());
 
 console.log('FPS Zombies - Buried loaded. Click to start!');
