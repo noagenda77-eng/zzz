@@ -22,7 +22,7 @@ const state = { isPointerLocked: false, isDead: false, enemies: [], grenades: []
 // Three.js setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(COLORS.FOG_COLOR);
-scene.fog = new THREE.FogExp2(COLORS.FOG_COLOR, 0.018);
+scene.fog = new THREE.FogExp2(COLORS.FOG_COLOR, 0.008);
 
 const camera = new THREE.PerspectiveCamera(GAME.DEFAULT_FOV, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.y = GAME.PLAYER_HEIGHT;
@@ -32,15 +32,15 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.85;
+renderer.toneMappingExposure = 1.25;
 document.body.appendChild(renderer.domElement);
 
 // Lighting
 function setupLighting() {
-    scene.add(new THREE.AmbientLight(0x2c1b12, 0.55));
+    scene.add(new THREE.AmbientLight(0x3a251a, 1.1));
 
     // Volumetric light from cave opening
-    const caveLight = new THREE.SpotLight(0xffeedd, 2.1, 70, Math.PI / 4, 0.5);
+    const caveLight = new THREE.SpotLight(0xfff2e0, 3.4, 90, Math.PI / 4, 0.45);
     caveLight.position.set(-15, GAME.CAVE_HEIGHT - 2, 10);
     caveLight.target.position.set(0, 0, 0);
     caveLight.castShadow = true;
@@ -57,7 +57,7 @@ function setupLighting() {
     ];
 
     lanterns.forEach(pos => {
-        const light = new THREE.PointLight(COLORS.LANTERN_WARM, 2.6, 18, 1.5);
+        const light = new THREE.PointLight(COLORS.LANTERN_WARM, 4.0, 26, 1.4);
         light.position.set(pos.x, pos.y, pos.z);
         light.castShadow = true;
         light.shadow.mapSize.set(256, 256);
