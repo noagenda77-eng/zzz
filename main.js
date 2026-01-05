@@ -38,6 +38,9 @@ document.body.appendChild(renderer.domElement);
 // Lighting
 function setupLighting() {
     scene.add(new THREE.AmbientLight(0x3a251a, 1.1));
+    const skylight = new THREE.HemisphereLight(0xffffff, 0x3a251a, 1.6);
+    skylight.position.set(0, GAME.CAVE_HEIGHT + 10, 0);
+    scene.add(skylight);
 
     // Volumetric light from cave opening
     const caveLight = new THREE.SpotLight(0xfff2e0, 3.4, 90, Math.PI / 4, 0.45);
