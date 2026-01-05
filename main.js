@@ -309,59 +309,12 @@ function loadZombieModelFromUrl(url) {
     });
 }
 
-function loadZombieModelFromPicker() {
-    return new Promise((resolve, reject) => {
-        const container = document.createElement('div');
-        container.style.position = 'fixed';
-        container.style.top = '20px';
-        container.style.right = '20px';
-        container.style.zIndex = '300';
-        container.style.background = 'rgba(0,0,0,0.6)';
-        container.style.padding = '10px 12px';
-        container.style.borderRadius = '6px';
-        container.style.fontFamily = "'Courier New', monospace";
-        container.style.fontSize = '12px';
-        container.style.color = '#fff';
-        container.innerHTML = '<div style="margin-bottom:6px;">Load zombie.glb</div>';
-
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.glb,.gltf';
-        input.style.color = '#fff';
-        input.addEventListener('change', () => {
-            if (!input.files || !input.files[0]) {
-                reject(new Error('No file selected'));
-                return;
-            }
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onload = () => {
-                const loader = new THREE.GLTFLoader();
-                loader.parse(
-                    reader.result,
-                    '',
-                    (gltf) => {
-                        state.zombieTemplate = gltf.scene;
-                        container.remove();
-                        resolve(state.zombieTemplate);
-                    },
-                    (error) => reject(error)
-                );
-            };
-            reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-            reader.readAsArrayBuffer(file);
-        });
-
-        container.appendChild(input);
-        document.body.appendChild(container);
-    });
-}
-
 function loadZombieModel() {
-    return loadZombieModelFromUrl('assets/zombie.glb').catch((error) => {
-        console.warn('Failed to load assets/zombie.glb. If running from file://, use the loader UI.', error);
+    return loadZombieModelFromUrl('./assets/zombie.glb').catch((error) => {
         if (window.location.protocol === 'file:') {
-            return loadZombieModelFromPicker();
+            console.warn('Model loading is blocked on file://. Run a local server to load assets/zombie.glb.', error);
+        } else {
+            console.warn('Failed to load assets/zombie.glb. Check that the file exists and is served.', error);
         }
         throw error;
     });
