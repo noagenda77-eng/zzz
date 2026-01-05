@@ -508,6 +508,9 @@ class Weapon {
         this.isReloading = false;
         this.reloadTimer = 0;
         this.fireCooldown = 0;
+        this.gunshotAudio = new Audio('assets/gunshot.mp3');
+        this.gunshotAudio.preload = 'auto';
+        this.gunshotAudio.volume = 0.4;
         this.updateHUD();
     }
 
@@ -517,6 +520,7 @@ class Weapon {
         this.fireCooldown = GAME.FIRE_RATE;
         this.updateHUD();
         this.model.shoot();
+        this.playGunshot();
 
         const raycaster = new THREE.Raycaster();
         raycaster.set(camera.position, new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion));
@@ -535,6 +539,13 @@ class Weapon {
         }
 
         if (this.ammo === 0 && this.reserveAmmo > 0) this.reload();
+    }
+
+    playGunshot() {
+        if (!this.gunshotAudio) return;
+        this.gunshotAudio.currentTime = 0;
+        const playPromise = this.gunshotAudio.play();
+        if (playPromise) playPromise.catch(() => {});
     }
 
     reload() {
